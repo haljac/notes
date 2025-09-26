@@ -171,7 +171,18 @@ function NoteView() {
                         },
                         hr: () => <hr className="border-gray-300 my-8" />,
                         strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                        em: ({children}) => <em className="italic">{children}</em>
+                        em: ({children}) => <em className="italic">{children}</em>,
+                        a: ({href, children, ...props}) => (
+                            <a 
+                                href={href}
+                                className="text-blue-600 hover:text-blue-800 underline transition-colors"
+                                target={href?.startsWith('http') ? '_blank' : undefined}
+                                rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
+                                {...props}
+                            >
+                                {children}
+                            </a>
+                        )
                     }}
                 >
                     {content}
