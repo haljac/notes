@@ -6,7 +6,7 @@ function TopNav() {
             <div className="max-w-4xl mx-auto px-6 py-4">
                 <div className="flex items-center justify-between">
                     <Link to="/" className="text-xl font-medium text-gray-900 hover:text-gray-600 transition-colors">
-                        Jack Vincent Hall
+                        Hall's Notes
                     </Link>
                     <div className="flex space-x-6">
                         <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors">Notes</Link>
