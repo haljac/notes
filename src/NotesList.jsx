@@ -14,87 +14,83 @@ function NotesList() {
     const [error, setError] = useState(null)
 
     useEffect(() => {
-        // Temporary fallback data for testing
-        const fallbackNotes = [
-            {
-                slug: 'on-writing',
-                title: 'On Writing',
-                date: '2024-01-15',
-                author: 'Jack Vincent Hall',
-                excerpt: 'Thoughts on the craft of writing and why it matters in our modern world.',
-                tags: ['writing', 'creativity', 'thoughts'],
-                readTime: '3 min read'
-            },
-            {
-                slug: 'digital-minimalism',
-                title: 'Digital Minimalism',
-                date: '2024-01-10',
-                author: 'Jack Vincent Hall',
-                excerpt: 'Notes on reducing digital clutter and finding focus in an always-connected world.',
-                tags: ['minimalism', 'technology', 'productivity'],
-                readTime: '4 min read'
-            },
-            {
-                slug: 'learning-in-public',
-                title: 'Learning in Public',
-                date: '2024-01-05',
-                author: 'Jack Vincent Hall',
-                excerpt: 'The benefits of sharing your learning journey and building in the open.',
-                tags: ['learning', 'growth', 'community'],
-                readTime: '3 min read'
-            }
-        ]
-
         const loadNotes = async () => {
             try {
-                console.log('Loading notes...')
-                // List of markdown files (in a real app, this would come from a build process or API)
-                const noteFiles = ['on-writing', 'digital-minimalism', 'learning-in-public']
+                console.log('Loading notes from index...')
                 
-                const notePromises = noteFiles.map(async (filename) => {
-                    try {
-                        console.log(`Fetching ${filename}.md...`)
-                        const response = await fetch(`/notes/${filename}.md`)
-                        console.log(`Response for ${filename}:`, response.status, response.ok)
-                        
-                        if (!response.ok) {
-                            console.log(`Failed to fetch ${filename}, using fallback data`)
-                            return fallbackNotes.find(note => note.slug === filename)
-                        }
-                        
-                        const markdownContent = await response.text()
-                        console.log(`Content length for ${filename}:`, markdownContent.length)
-                        
-                        const { data } = matter(markdownContent)
-                        console.log(`Parsed data for ${filename}:`, data)
-                        
-                        return {
-                            slug: filename,
-                            ...data
-                        }
-                    } catch (error) {
-                        console.error(`Error loading ${filename}:`, error)
-                        console.log(`Using fallback data for ${filename}`)
-                        return fallbackNotes.find(note => note.slug === filename)
-                    }
-                })
-
-                const loadedNotes = await Promise.all(notePromises)
-                console.log('Loaded notes:', loadedNotes)
-                const validNotes = loadedNotes.filter(note => note !== null)
-                console.log('Valid notes:', validNotes)
+                // First, try to load the notes index
+                const indexResponse = await fetch('/notes-index.json')
+                if (!indexResponse.ok) {
+                    throw new Error('Could not load notes index')
+                }
                 
-                // Sort by date (newest first)
-                validNotes.sort((a, b) => new Date(b.date) - new Date(a.date))
+                const notesIndex = await indexResponse.json()
+                console.log('Loaded notes index:', notesIndex)
                 
-                setNotes(validNotes)
+                if (!Array.isArray(notesIndex) || notesIndex.length === 0) {
+                    throw new Error('Notes index is empty or invalid')
+                }
+                
+                // The index already contains all the metadata we need
+                // Sort by date (newest first) - the index should already be sorted, but just in case
+                notesIndex.sort((a, b) => new Date(b.date) - new Date(a.date))
+                
+                setNotes(notesIndex)
+                console.log(`Successfully loaded ${notesIndex.length} notes from index`)
+                
             } catch (error) {
                 console.error('Error loading notes:', error)
                 setError(error.message)
-                // Use fallback data on error
-                setNotes(fallbackNotes)
+                
+                // Fallback: try to load notes dynamically if index fails
+                console.log('Falling back to dynamic discovery...')
+                await loadNotesWithFallback()
             } finally {
                 setLoading(false)
+            }
+        }
+        
+        const loadNotesWithFallback = async () => {
+            try {
+                // Attempt to discover notes by trying common patterns
+                const potentialSlugs = ['pain-and-pleasure', 'on-writing', 'digital-minimalism', 'learning-in-public']
+                const foundNotes = []
+                
+                for (const slug of potentialSlugs) {
+                    try {
+                        const response = await fetch(`/notes/${slug}.md`)
+                        if (response.ok) {
+                            const markdownContent = await response.text()
+                            const { data } = matter(markdownContent)
+                            
+                            foundNotes.push({
+                                slug,
+                                ...data,
+                                // Provide defaults if missing
+                                title: data.title || slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                                date: data.date || new Date().toISOString().split('T')[0],
+                                excerpt: data.excerpt || 'No excerpt available.',
+                                tags: data.tags || [],
+                                readTime: data.readTime || '5 min read'
+                            })
+                            console.log(`Found note: ${slug}`)
+                        }
+                    } catch {
+                        console.log(`Note not found: ${slug}`)
+                    }
+                }
+                
+                if (foundNotes.length > 0) {
+                    foundNotes.sort((a, b) => new Date(b.date) - new Date(a.date))
+                    setNotes(foundNotes)
+                    console.log(`Fallback discovery found ${foundNotes.length} notes`)
+                } else {
+                    setNotes([])
+                }
+                
+            } catch (fallbackError) {
+                console.error('Fallback loading failed:', fallbackError)
+                setNotes([])
             }
         }
 
